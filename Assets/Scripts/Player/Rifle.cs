@@ -6,6 +6,8 @@ public class Rifle : MonoBehaviour
     [Header("Rifle Settings")]
     [SerializeField] private float shootRange = 20f;
     [SerializeField] private LayerMask enemyLayerMask;
+    [SerializeField] private float damageAmount = 25f;
+    [SerializeField] private string damageType = "Stun";
     
     [Header("Visual Feedback")]
     [SerializeField] private LineRenderer lineRenderer;
@@ -19,85 +21,79 @@ public class Rifle : MonoBehaviour
             lineRenderer.enabled = false;
         }
         
-        Debug.Log("🎯 Rifle inicializado - Listo para disparar con Input System");
+        Debug.Log("🎯 Rifle INICIALIZADO - Esperando input...");
         
-        // Verificar que el Input System esté disponible
-        if (Mouse.current == null)
-        {
-            Debug.LogWarning("⚠️ Mouse no detectado en Input System");
-        }
-        else
-        {
-            Debug.Log("✅ Input System Mouse detectado correctamente");
-        }
+        // Verificar dispositivos de input
+        Debug.Log($"🖱️ Mouse disponible: {Mouse.current != null}");
+        Debug.Log($"⌨️ Teclado disponible: {Keyboard.current != null}");
     }
     
     void Update()
     {
-        // SOLO Input System - NO usar Input.GetMouseButtonDown
-        if (Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame)
+        // DEBUG TEMPORAL - Verificar input cada frame
+        if (Mouse.current != null)
         {
-            Debug.Log("🔫 BOTÓN IZQUIERDO PRESIONADO - DISPARANDO!");
-            Shoot();
+            if (Mouse.current.leftButton.wasPressedThisFrame)
+            {
+                Debug.Log("🔴🔴🔴 CLICK IZQUIERDO DETECTADO por Input System!");
+                Shoot();
+            }
+            
+            // También verificar click derecho para testing
+            if (Mouse.current.rightButton.wasPressedThisFrame)
+            {
+                Debug.Log("🔵 CLICK DERECHO DETECTADO");
+            }
         }
         
-        // Opcional: también disparar con Space bar para testing
-        if (Keyboard.current != null && Keyboard.current.spaceKey.wasPressedThisFrame)
+        if (Keyboard.current != null)
         {
-            Debug.Log("🔫 ESPACIO PRESIONADO - DISPARANDO!");
-            Shoot();
+            if (Keyboard.current.spaceKey.wasPressedThisFrame)
+            {
+                Debug.Log("🟢 ESPACIO DETECTADO");
+                Shoot();
+            }
+            
+            if (Keyboard.current.fKey.wasPressedThisFrame)
+            {
+                Debug.Log("🟡 TECLA F DETECTADA");
+                Shoot();
+            }
         }
     }
     
     private void Shoot()
     {
+        Debug.Log("🎯 MÉTODO SHOOT() EJECUTADO");
+        
         RaycastHit hit;
         Vector3 startPosition = transform.position;
         Vector3 direction = transform.forward;
-        
-        Debug.Log($"🎯 RAYCAST desde: {startPosition} dirección: {direction}");
+
+        Debug.Log($"📍 Posición del rifle: {startPosition}");
+        Debug.Log($"🎯 Dirección: {direction}");
 
         if (Physics.Raycast(startPosition, direction, out hit, shootRange, enemyLayerMask))
         {
-            Debug.Log($"✅ GOLPEÓ: {hit.collider.gameObject.name}");
-            Debug.Log($"   📍 Posición impacto: {hit.point}");
-            Debug.Log($"   🏷️ Layer: {LayerMask.LayerToName(hit.collider.gameObject.layer)}");
+            Debug.Log($"✅✅✅ RAYCAST GOLPEÓ: {hit.collider.gameObject.name}");
             
-            Debug.DrawRay(startPosition, direction * hit.distance, Color.red, 5f);
-            ShowShotLine(startPosition, hit.point);
-            
-            // Verificar IInteractable
-            IInteractable interactable = hit.collider.GetComponent<IInteractable>();
-            if (interactable != null)
+            // Buscar IDamageable
+            IDamageable damageable = hit.collider.GetComponent<IDamageable>();
+            if (damageable != null)
             {
-                Debug.Log($"🎯 LLAMANDO Interact() en: {hit.collider.gameObject.name}");
-                interactable.Interact();
-                Debug.Log("💫 ¡ENEMIGO ATURDIDO!");
+                Debug.Log($"💥💥💥 IDamageable ENCONTRADO - Aplicando daño!");
+                damageable.TakeDamage(damageAmount, damageType);
             }
             else
             {
-                Debug.LogWarning($"❌ NO tiene IInteractable: {hit.collider.gameObject.name}");
-                
-                // Debug: mostrar todos los componentes
-                Component[] allComponents = hit.collider.GetComponents<Component>();
-                Debug.Log($"📋 Componentes en {hit.collider.gameObject.name}:");
-                foreach (Component comp in allComponents)
-                {
-                    Debug.Log($"   - {comp.GetType().Name}");
-                }
+                Debug.LogError($"❌❌❌ NO SE ENCONTRÓ IDamageable en {hit.collider.gameObject.name}");
             }
         }
         else
         {
-            Debug.Log($"❌ RAYCAST FALLÓ - No golpeó ningún enemigo");
-            Debug.Log($"   📏 Rango máximo: {shootRange}");
-            Debug.Log($"   🎯 Layer Mask: {enemyLayerMask.value}");
-            
-            Debug.DrawRay(startPosition, direction * shootRange, Color.yellow, 5f);
-            ShowShotLine(startPosition, startPosition + direction * shootRange);
+            Debug.Log($"❌ RAYCAST FALLÓ - No golpeó nada");
         }
     }
-    
     private void ShowShotLine(Vector3 start, Vector3 end)
     {
         if (lineRenderer != null)
@@ -115,6 +111,32 @@ public class Rifle : MonoBehaviour
         {
             lineRenderer.enabled = false;
         }
+    }
+
+    // MÉTODOS NUEVOS PARA CONFIGURAR EL DAÑO DINÁMICAMENTE
+    public void SetDamage(float newDamage, string newDamageType)
+    {
+        damageAmount = newDamage;
+        damageType = newDamageType;
+        Debug.Log($"🔄 Rifle configurado - Daño: {damageAmount} Tipo: {damageType}");
+    }
+
+    public void SetStunDamage()
+    {
+        SetDamage(25f, "Stun");
+        Debug.Log("🌀 Rifle configurado para daño ATURDIDOR");
+    }
+
+    public void SetPhysicalDamage()
+    {
+        SetDamage(35f, "Physical");
+        Debug.Log("⚔️ Rifle configurado para daño FÍSICO");
+    }
+
+    public void SetFireDamage()
+    {
+        SetDamage(50f, "Fire");
+        Debug.Log("🔥 Rifle configurado para daño de FUEGO");
     }
     
     // Método para debug visual en el Editor
